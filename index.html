@@ -72,7 +72,11 @@
     <div class="topbar-title">Simplex Intelligence — Site Database</div>
     <div class="topbar-sub">Australian mine sites with accommodation villages — WA, SA &amp; NT — brownfields &amp; greenfields opportunities</div>
   </div>
-  <div style="display:flex;gap:8px;">
+  <div style="display:flex;gap:8px;align-items:center;">
+    <div style="display:flex;gap:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:3px;">
+      <button class="btn btn-view-active" id="btn-table" onclick="setView('table')" style="padding:5px 12px;">Table</button>
+      <button class="btn" id="btn-map" onclick="setView('map')" style="padding:5px 12px;">Map</button>
+    </div>
     <button class="btn btn-green" onclick="exportCSV()">Export CSV</button>
   </div>
 </div>
