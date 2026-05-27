@@ -438,6 +438,125 @@ function exportCSV() {
 renderStats();
 populateCommodityFilter();
 renderTable();
+
+// ── Map ──────────────────────────────────────────────────────────────────────
+const coords = {
+  1:[-22.694,117.793], 2:[-23.199,117.673], 3:[-22.485,117.175],
+  4:[-22.597,118.803], 5:[-22.652,118.127], 6:[-22.498,118.094],
+  7:[-21.641,116.323], 8:[-22.375,119.027], 9:[-23.367,119.733],
+  10:[-23.498,119.931], 11:[-23.450,119.815], 12:[-23.310,119.645],
+  13:[-22.352,119.047], 14:[-22.378,119.639], 15:[-22.150,119.590],
+  16:[-20.900,119.263], 17:[-21.625,115.032], 18:[-22.618,119.963],
+  19:[-20.671,118.720], 20:[-21.670,117.995], 21:[-21.712,122.228],
+  22:[-23.886,119.793], 23:[-20.310,118.571], 24:[-20.732,116.844],
+  25:[-20.745,116.861], 26:[-20.650,116.757], 27:[-20.738,116.875],
+  28:[-30.749,121.508], 29:[-30.604,121.693], 30:[-30.824,121.459],
+  31:[-27.851,120.703], 32:[-28.601,122.815], 33:[-26.375,120.572],
+  34:[-27.891,120.519], 35:[-31.152,121.745], 36:[-28.357,122.381],
+  37:[-27.932,123.191], 38:[-28.157,124.832], 39:[-29.063,122.423],
+  40:[-32.795,116.474], 41:[-26.596,122.001], 42:[-28.882,121.329],
+  43:[-27.502,121.494], 44:[-30.497,121.163], 45:[-31.659,121.510],
+  46:[-30.760,121.482], 47:[-29.432,121.161], 48:[-32.199,121.782],
+  49:[-31.000,121.059], 50:[-30.746,121.706], 51:[-27.802,119.815],
+  52:[-26.900,118.000], 53:[-27.810,116.523], 54:[-28.067,117.843],
+  55:[-24.903,118.295], 56:[-25.334,119.028], 57:[-28.395,116.626],
+  58:[-31.310,118.699], 59:[-27.262,120.552], 60:[-27.840,120.708],
+  61:[-27.895,120.802], 62:[-31.198,121.621], 63:[-17.202,123.520],
+  64:[-16.710,128.396], 65:[-16.547,128.047], 66:[-33.851,116.059],
+  67:[-26.590,120.218], 68:[-27.800,117.290], 69:[-25.207,118.908],
+  70:[-30.988,120.793], 71:[-30.451,136.893], 72:[-29.727,135.327],
+  73:[-31.308,137.116], 74:[-30.649,137.096], 75:[-35.057,139.011],
+  76:[-34.578,137.496], 77:[-31.606,140.395], 78:[-31.723,139.990],
+  79:[-20.027,130.189], 80:[-16.439,136.090], 81:[-13.965,136.641],
+  82:[-12.845,130.803], 83:[-12.169,136.699], 84:[-14.739,134.543],
+  85:[-14.850,134.607], 86:[-19.652,134.197], 87:[-21.903,136.345],
+  88:[-12.683,132.895], 89:[-19.645,134.187], 90:[-30.745,115.518],
+  91:[-29.833,115.268], 92:[-30.760,115.530], 93:[-28.521,114.603],
+  94:[-26.509,114.302], 95:[-31.714,121.887], 96:[-33.573,120.047],
+  97:[-28.712,121.880], 98:[-31.535,123.822], 99:[-32.531,119.826],
+  100:[-33.578,120.041], 101:[-18.023,128.502]
+};
+
+const markerColour = {
+  'Active': '#2ecc8a',
+  'Care & Maintenance': '#f5a623',
+  'Development': '#3d8ef8',
+  'Proposed': '#9b6dff',
+  'Closed / Rehab': '#8b90a0'
+};
+
+function makeIcon(status) {
+  const c = markerColour[status] || '#8b90a0';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="28" viewBox="0 0 22 28">
+    <ellipse cx="11" cy="26" rx="5" ry="2" fill="rgba(0,0,0,0.25)"/>
+    <path d="M11 0C6.03 0 2 4.03 2 9c0 6.75 9 17 9 17s9-10.25 9-17c0-4.97-4.03-9-9-9z" fill="${c}" stroke="rgba(0,0,0,0.4)" stroke-width="1"/>
+    <circle cx="11" cy="9" r="4" fill="rgba(255,255,255,0.3)"/>
+  </svg>`;
+  return L.divIcon({
+    html: svg, className: '', iconSize: [22, 28], iconAnchor: [11, 28], popupAnchor: [0, -28]
+  });
+}
+
+let map = null, markerLayer = null;
+
+function initMap() {
+  if (map) return;
+  map = L.map('map', { zoomControl: true }).setView([-25.5, 122.5], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+  renderMapMarkers();
+}
+
+function renderMapMarkers() {
+  if (!map) return;
+  markerLayer.clearLayers();
+  filtered.forEach(d => {
+    const c = coords[d.id];
+    if (!c) return;
+    const popup = `
+      <div class="popup-title">${d.name}</div>
+      <div class="popup-row">Operator: <span>${d.operator}</span></div>
+      <div class="popup-row">Commodity: <span>${d.commodity}</span></div>
+      <div class="popup-row">Status: <span>${d.status}</span></div>
+      <div class="popup-row">Village: <span>${d.village}</span></div>
+      <div class="popup-row">Capacity: <span>${d.capacity}</span></div>
+      <div class="popup-row">Opportunity: <span>${d.opportunityType}</span></div>
+      ${d.telcoNotes ? `<div class="popup-telco">${d.telcoNotes}</div>` : ''}
+    `;
+    L.marker(c, { icon: makeIcon(d.status) })
+      .bindPopup(popup, { maxWidth: 280 })
+      .addTo(markerLayer);
+  });
+}
+
+function setView(v) {
+  const tableWrap = document.querySelector('.table-wrap');
+  const mapCont = document.getElementById('map-container');
+  const resCount = document.getElementById('result-count');
+  const btnTable = document.getElementById('btn-table');
+  const btnMap = document.getElementById('btn-map');
+  if (v === 'map') {
+    tableWrap.style.display = 'none';
+    resCount.style.display = 'none';
+    mapCont.style.display = 'block';
+    btnTable.classList.remove('btn-view-active');
+    btnMap.classList.add('btn-view-active');
+    initMap();
+    setTimeout(() => map.invalidateSize(), 50);
+  } else {
+    tableWrap.style.display = 'block';
+    resCount.style.display = 'block';
+    mapCont.style.display = 'none';
+    btnTable.classList.add('btn-view-active');
+    btnMap.classList.remove('btn-view-active');
+  }
+}
+
+const _origApplyFilters = applyFilters;
+applyFilters = function() { _origApplyFilters(); renderMapMarkers(); };
 </script>
 </body>
 </html>
